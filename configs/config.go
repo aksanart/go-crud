@@ -3,6 +3,7 @@ package configs
 import (
 	"errors"
 	"log"
+	"os"
 
 	"github.com/spf13/viper"
 )
@@ -32,6 +33,9 @@ func LoadConfig(filename string) (*viper.Viper, error) {
 	v.SetConfigName(filename)
 	v.AddConfigPath(".")
 	v.AutomaticEnv()
+	if os.Getenv("config") != "" {
+		v.SetEnvPrefix("EV_CONFIG")
+	}
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			log.Println("err", err)
@@ -50,7 +54,10 @@ func ParseConfig(v *viper.Viper) (*Config, error) {
 		log.Printf("unable to decode into struct, %v", err)
 		return nil, err
 	}
-
+	err = c.Validate()
+	if err != nil {
+		return nil, err
+	}
 	return &c, nil
 }
 
@@ -59,7 +66,6 @@ func GetConfig(configPath string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	cfg, err := ParseConfig(cfgFile)
 	if err != nil {
 		return nil, err
@@ -68,6 +74,20 @@ func GetConfig(configPath string) (*Config, error) {
 }
 
 func GetConfigPath(configPath string) string {
-	viper.ReadInConfig()
-	return "./configs/env"
+	switch os.Getenv("config") {
+	case "k8s":
+		return "/etc/golang/env"
+	default:
+		return "./configs/env"
+	}
+}
+
+func (config *Config) Validate() error {
+	if config.App.Port == 0 {
+		return errors.New("port empty")
+	}
+	if config.Mysql.Host == "" {
+		return errors.New("db host empty")
+	}
+	return nil
 }

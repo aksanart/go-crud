@@ -5,7 +5,7 @@ run:mod
 	go run main.go serve
 
 lint:
-	golangci-lint run --fix
+	golangci-lint run --fix ./...
 
 test:mod lint
 	go test -count=1 -race -v ./...
